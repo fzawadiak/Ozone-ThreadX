@@ -17,6 +17,9 @@ function init(){
 	
 	Threads.newqueue("Semaphores");
 	Threads.setColumns("Semaphore","Count","Suspended");
+	
+	Threads.newqueue("Events");
+	Threads.setColumns("Event","Current Flags","Suspended");
 }
 	
 function threadDescription(thread) {
@@ -111,7 +114,7 @@ function updateSemaphores() {
 		var semaphore = Debug.evaluate("*(TX_SEMAPHORE*)" + current);
 		var name = Debug.evaluate("((TX_SEMAPHORE*)" + current + ")->tx_semaphore_name");
 		var waiting = "";
-		if(semaphore.tx_mutex_suspension_list != 0)
+		if(semaphore.tx_semaphore_suspension_list != 0)
 			waiting = Debug.evaluate("((TX_THREAD*)" + semaphore.tx_semaphore_suspension_list + ")->tx_thread_name");
 		Threads.add2(
 			"Semaphores",
@@ -119,6 +122,26 @@ function updateSemaphores() {
 			semaphore.tx_semaphore_count,
 			waiting);
 		current = semaphore.tx_semaphore_created_next;
+	} while(current != first);
+}
+
+function updateEvents() {
+	var first = Debug.evaluate("(TX_EVENT_FLAGS_GROUP*)_tx_event_flags_created_ptr");
+	var current = first;
+	do {
+		var event = Debug.evaluate("*(TX_EVENT_FLAGS_GROUP*)" + current);
+		var name = Debug.evaluate("((TX_EVENT_FLAGS_GROUP*)" + current + ")->tx_event_flags_group_name");
+		var waiting = "";
+		var flags = "";
+		if(event.tx_event_flags_group_suspension_list != 0)
+			waiting = Debug.evaluate("((TX_THREAD*)" + event.tx_event_flags_group_suspension_list + ")->tx_thread_name");
+		flags = event.tx_event_flags_group_current;
+		Threads.add2(
+			"Events",
+			name,
+			flags.toString(2),
+			waiting);
+		current = event.tx_event_flags_group_created_next;
 	} while(current != first);
 }
 
@@ -131,6 +154,9 @@ function update(){
 	}
 	if (Threads.shown("Semaphores")) {
 		updateSemaphores();
+	}
+	if (Threads.shown("Events")) {
+		updateEvents();
 	}
 }
 
